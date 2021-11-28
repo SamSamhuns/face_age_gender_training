@@ -1,6 +1,6 @@
 {
   "criterion": "cse",
-  "gender_or_age_or_custom_feat": "custom_feat",
+  "gender_or_age_or_features": "features",
   "add_residual": true,
   "add_IC": true,
   "dropout": [0.05],
