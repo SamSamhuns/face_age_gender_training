@@ -126,3 +126,6 @@ venv
 weights/
 # except for download weights script
 !*/weights/download_weights.sh
+
+# data dir
+data
