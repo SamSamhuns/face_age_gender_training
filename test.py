@@ -41,7 +41,7 @@ def test(config: ConfigParser, checkpoint: str) -> dict:
     logger.info(model)
 
     # get function handles of loss and test_metrics
-    loss_fn = getattr(module_loss, config['loss'])
+    loss_fn = config.init_ftn('loss', module_loss)
     n_cls = config['data_loader']['args']['num_classes']
     # must pass num_classes if accuracy_per_class metric is used
     met_func_dict = {met: partial(getattr(module_metric, met), num_classes=n_cls) if met == "acc_per_class"

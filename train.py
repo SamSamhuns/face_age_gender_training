@@ -51,9 +51,9 @@ def train(config: ConfigParser):
         model = torch.nn.DataParallel(model, device_ids=device_ids)
 
     # get function handles of loss and train_metrics
-    criterion = getattr(module_loss, config['loss'])
+    criterion = config.init_ftn('loss', module_loss)
     if "acc_per_class" in config['train_metrics']:
-        raise ValueError("""Metric acc_per_class is only avialable for training.\n
+        raise ValueError("""Metric acc_per_class is only avialable for testing.\n
                          It is NOT supported for training/validation""")
     train_metrics = [getattr(module_metric, met)
                      for met in config['train_metrics']]

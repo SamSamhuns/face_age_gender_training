@@ -51,7 +51,7 @@ def train(config: dict):
     elif config['criterion'] == 'cse':
         criterion = nn.CrossEntropyLoss()
     else:
-        raise ValueError
+        raise NotImplementedError(f"Criterion {config['criterion']} is not implemented")
 
     optimizer = optim.AdamW(
         net.parameters(), lr=config["lr"], weight_decay=config['weight_decay'])
@@ -59,12 +59,12 @@ def train(config: dict):
     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
         optimizer, gamma=config['gamma'])
 
-    if config['gender_or_age_or_custom_video'].lower() == 'age':
+    if config['gender_or_age_or_features'].lower() == 'age':
         from data_loader.data_loaders import AgeDataLoader as DataLoader
-    elif config['gender_or_age_or_custom_video'].lower() == 'gender':
+    elif config['gender_or_age_or_features'].lower() == 'gender':
         from data_loader.data_loaders import GenderDataLoader as DataLoader
-    elif config['gender_or_age_or_custom_video'].lower() == 'custom_video':
-        from data_loader.data_loaders import VideoFeatDataLoader as DataLoader
+    elif config['gender_or_age_or_features'].lower() == 'features':
+        from data_loader.data_loaders import FeaturesDataLoader as DataLoader
     else:
         raise ValueError
 
