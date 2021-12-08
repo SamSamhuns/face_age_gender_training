@@ -31,7 +31,8 @@ def text_onnx_inference(onnx_save_path, onnx_input, torch_out):
 
 def onnx_export(args):
     onnx_save_dir = os.path.dirname(args.onnx_save_path)
-    os.makedirs(onnx_save_dir, exist_ok=True)
+    if onnx_save_dir != '':
+        os.makedirs(onnx_save_dir, exist_ok=True)
     t = time.time()
     device = "cpu"
     if torch.cuda.is_available():
