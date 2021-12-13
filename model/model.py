@@ -7,29 +7,29 @@ class Residual(nn.Module):
     """
     This module looks like what you find in the original resnet or IC paper
     (https://arxiv.org/pdf/1905.05928.pdf), except that it's based on MLP, not CNN.
-    If you flag `only_MLP` as True, then it won't use any batch norm, dropout, or
+    If `only_MLP` is True, then it won't use any batch norm, dropout, or
     residual connections
     """
 
-    def __init__(self, num_features: int, dropout: float,
+    def __init__(self, num_feats: int, dropout: float,
                  add_residual: bool, add_IC: bool, i: int, j: int):
         super().__init__()
-        self.num_features = num_features
+        self.num_feats = num_feats
         self.add_residual = add_residual
         self.add_IC = add_IC
         self.i = i
         self.j = j
 
         if (not ((self.i == 0) and (self.j == 0))) and self.add_IC:
-            self.norm_layer1 = nn.BatchNorm1d(num_features)
+            self.norm_layer1 = nn.BatchNorm1d(num_feats)
             self.dropout1 = nn.Dropout(p=dropout)
-        self.linear1 = nn.Linear(num_features, num_features)
+        self.linear1 = nn.Linear(num_feats, num_feats)
         self.relu1 = nn.ReLU()
 
         if self.add_IC:
-            self.norm_layer2 = nn.BatchNorm1d(num_features)
+            self.norm_layer2 = nn.BatchNorm1d(num_feats)
             self.dropout2 = nn.Dropout(p=dropout)
-        self.linear2 = nn.Linear(num_features, num_features)
+        self.linear2 = nn.Linear(num_feats, num_feats)
         self.relu2 = nn.ReLU()
 
     def forward(self, x: torch.tensor) -> torch.Tensor:
@@ -54,27 +54,20 @@ class Residual(nn.Module):
         return out
 
 
-class DownSample(nn.Module):
-    """
-    This module is an MLP, where the number of output features is lower than
-    that of input features. If you flag `only_MLP` as False, it'll add norm
-    and dropout
-    """
+class FCN_Block(nn.Module):
 
-    def __init__(self, in_features: int, out_features: int, dropout: float,
-                 add_IC: bool):
+    def __init__(self, in_feats: int, out_feats: int, dropout: float = 0.1,
+                 add_IC: bool = True, act_layer: nn.Module = nn.ReLU):
         super().__init__()
-        assert in_features > out_features
-
-        self.in_features = in_features
-        self.out_features = out_features
+        self.in_feats = in_feats
+        self.out_feats = out_feats
         self.add_IC = add_IC
 
         if self.add_IC:
-            self.norm_layer = nn.BatchNorm1d(in_features)
+            self.norm_layer = nn.BatchNorm1d(in_feats)
             self.dropout = nn.Dropout(p=dropout)
-        self.linear = nn.Linear(in_features, out_features)
-        self.relu = nn.ReLU()
+        self.linear = nn.Linear(in_feats, out_feats)
+        self.activation = act_layer()
 
     def forward(self, x: torch.tensor) -> torch.Tensor:
         out = x
@@ -83,7 +76,7 @@ class DownSample(nn.Module):
             out = self.norm_layer(out)
             out = self.dropout(out)
         out = self.linear(out)
-        out = self.relu(out)
+        out = self.activation(out)
         return out
 
 
@@ -97,36 +90,37 @@ class ResMLP(BaseModel):
     """
 
     def __init__(self, dropout: float, num_residuals_per_block: int, num_blocks: int, num_classes: int,
-                 num_initial_features: int, reduce_in_features: int, add_residual: bool = True, add_IC: bool = True):
+                 num_initial_feats: int, reduce_in_feats: int, add_residual: bool = True, add_IC: bool = True):
         super().__init__()
 
         blocks = []
         # input feature space reduction layer, acts as encoder layer
         # if reduce_feat_num is not None, reduce input features with downsampling instead of residual block
-        if reduce_in_features is not None:
-            blocks.append(DownSample(
-                num_initial_features, reduce_in_features, dropout, add_IC))
+        if reduce_in_feats is not None:
+            # add downsampling
+            blocks.append(FCN_Block(
+                num_initial_feats, reduce_in_feats, dropout, add_IC))
         else:
-            reduce_in_features = num_initial_features
+            reduce_in_feats = num_initial_feats
 
         for i in range(num_blocks):
             blocks.extend(self._create_block(
-                reduce_in_features, dropout, num_residuals_per_block, add_residual, add_IC, i))
-            reduce_in_features //= 2
+                reduce_in_feats, dropout, num_residuals_per_block, add_residual, add_IC, i))
+            reduce_in_feats //= 2
 
         # last classification layer
-        blocks.append(nn.Linear(reduce_in_features, num_classes))
+        blocks.append(nn.Linear(reduce_in_feats, num_classes))
         self.blocks = nn.Sequential(*blocks)
 
-    def _create_block(self, in_features: int, dropout: float,
+    def _create_block(self, in_feats: int, dropout: float,
                       num_residuals_per_block: int, add_residual: bool,
                       add_IC: bool, i: int) -> list:
         block = []
         for j in range(num_residuals_per_block):
-            block.append(Residual(in_features, dropout,
+            block.append(Residual(in_feats, dropout,
                                   add_residual, add_IC, i, j))
-        block.append(DownSample(
-            in_features, in_features // 2, dropout, add_IC))
+        block.append(FCN_Block(
+            in_feats, in_feats // 2, dropout, add_IC))  # add downsampling
         return block
 
     def forward(self, x: torch.tensor) -> torch.Tensor:
@@ -139,31 +133,86 @@ class FullyConnectedNet(BaseModel):
     """
 
     def __init__(self, num_blocks: int, num_classes: int,
-                 num_initial_features: int, reduce_in_features: int, **kwargs):
+                 num_initial_feats: int, reduce_in_feats: int, **kwargs):
         super().__init__()
 
         blocks = []
         # input feature space reduction layer, acts as encoder layer
         # if reduce_feat_num is not None, reduce input features with downsampling instead of residual block
-        if reduce_in_features is not None:
-            blocks.append(nn.Linear(num_initial_features, reduce_in_features))
+        if reduce_in_feats is not None:
+            blocks.append(nn.Linear(num_initial_feats, reduce_in_feats))
             blocks.append(nn.ReLU())
         else:
-            reduce_in_features = num_initial_features
+            reduce_in_feats = num_initial_feats
 
         for i in range(num_blocks):
-            blocks.extend(self._create_block(reduce_in_features))
-            reduce_in_features //= 2
+            blocks.extend(self._create_block(reduce_in_feats))
+            reduce_in_feats //= 2
 
         # last classification layer
-        blocks.append(nn.Linear(reduce_in_features, num_classes))
+        blocks.append(nn.Linear(reduce_in_feats, num_classes))
         self.blocks = nn.Sequential(*blocks)
 
-    def _create_block(self, in_features: int) -> list:
+    def _create_block(self, in_feats: int) -> list:
         block = []
-        block.append(nn.Linear(in_features, in_features // 2))
+        block.append(nn.Linear(in_feats, in_feats // 2))
         block.append(nn.ReLU())
         return block
 
     def forward(self, x: torch.tensor) -> torch.Tensor:
         return self.blocks(x)
+
+
+class AutoEncoder(BaseModel):
+
+    def __init__(self, num_in_feats: int, num_latent_vector: int,
+                 num_enc_blocks: int = 4, num_dec_blocks: int = 4,
+                 dropout: float = 0.1, add_IC: bool = True):
+        super().__init__()
+        self.encoder = Encoder(num_in_feats, num_latent_vector, num_enc_blocks, dropout, add_IC)
+        self.decoder = Decoder(num_latent_vector, num_in_feats, num_dec_blocks, dropout, add_IC)
+
+    def forward(self, x: torch.tensor) -> torch.Tensor:
+        z = self.encoder.forward(x)
+        x = self.decoder.forward(z)
+        return x
+
+
+class Encoder(BaseModel):
+    def __init__(self, num_in_feats: int, num_latent_vector: int,
+                 num_blocks: int = 4, dropout: float = 0.1, add_IC: bool = True):
+        super().__init__()
+
+        self.encoder = torch.nn.Sequential()
+        in_feat, out_feat = num_in_feats, num_in_feats // 2
+        for i in range(num_blocks):
+            self.encoder.add_module(
+                f"downsample_{i}", FCN_Block(in_feat, out_feat, dropout, add_IC))
+            in_feat = out_feat
+            out_feat = num_latent_vector if i == num_blocks - 2 else out_feat // 2
+
+    def forward(self, x: torch.tensor) -> torch.Tensor:
+        out = self.encoder.forward(x)
+        return out
+
+
+class Decoder(BaseModel):
+
+    def __init__(self, num_latent_vector: int, num_out_feats: int,
+                 num_blocks: int = 4, dropout: float = 0.1, add_IC: bool = True):
+        super().__init__()
+
+        self.decoder = torch.nn.Sequential()
+        in_feat, out_feat = num_latent_vector, num_latent_vector * 2
+        for i in range(num_blocks):
+            if i == num_blocks - 1:
+                up_block = FCN_Block(in_feat, out_feat, dropout, add_IC, nn.Sigmoid)
+            else:
+                up_block = FCN_Block(in_feat, out_feat, dropout, add_IC)
+            self.decoder.add_module(f"upsample_{i}", up_block)
+            in_feat = out_feat
+            out_feat = num_out_feats if i == num_blocks - 2 else out_feat * 2
+
+    def forward(self, z: torch.tensor) -> torch.Tensor:
+        out = self.decoder.forward(z)
+        return out

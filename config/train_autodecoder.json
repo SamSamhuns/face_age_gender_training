@@ -1,32 +1,30 @@
 {
-  "name": "ResMLP_age",
+  "name": "AutoEncoder",
   "n_gpu": 1,
   "amp": true,
   "checkpoint": null,
   "arch": {
-    "type": "ResMLP",
+    "type": "AutoEncoder",
     "args": {
+      "num_in_feats": 25600,
+      "num_latent_vector": 512,
+      "num_enc_blocks": 4,
+      "num_dec_blocks": 4,
       "dropout": 0.05,
-      "num_residuals_per_block": 1,
-      "num_blocks": 4,
-      "num_classes": 5,
-      "num_initial_feats": 512,
-      "reduce_in_feats": null,
-      "add_residual": true,
       "add_IC": true
     }
   },
   "data_loader": {
-    "type": "AgeDataLoader",
+    "type": "FeaturesDataLoader",
     "args": {
-      "data_dir": "data/",
-      "batch_size": 128,
+      "data_dir": "data",
+      "batch_size": 32,
       "shuffle": true,
-      "validation_split": 0,
+      "validation_split": 0.1,
       "num_workers": 8,
-      "dataset": "wiki",
-      "dataset_test": null,
-      "num_classes": 5
+      "dataset": "feat_256_train",
+      "dataset_test": "feat_256_test",
+      "num_classes": 0
     }
   },
   "optimizer": {
@@ -37,21 +35,14 @@
     }
   },
   "loss": {
-    "type": "cse",
-    "args": {
-      "label_smoothing": 0.0
-    }
+    "type": "mse",
+    "args": {}
   },
   "train_metrics": [
-    "accuracy",
-    "top_3_acc",
-    "top_5_acc"
+    "accuracy_mse"
   ],
   "test_metrics": [
-    "accuracy",
-    "top_3_acc",
-    "top_5_acc",
-    "acc_per_class"
+    "accuracy_mse"
   ],
   "lr_scheduler": {
     "type": "ExponentialLR",

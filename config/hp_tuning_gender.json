@@ -1,6 +1,6 @@
 {
   "criterion": "cse",
-  "gender_or_age_or_features": "gender",
+  "gender_or_age_or_feats": "gender",
   "add_residual": true,
   "add_IC": true,
   "dropout": [0.05],
@@ -19,7 +19,7 @@
   "limit_data": null,
   "amp": true,
   "num_classes": 2,
-  "num_initial_features": 512,
-  "reduce_in_features": null,
+  "num_initial_feats": 512,
+  "reduce_in_feats": null,
   "validation_split": 0.1
 }

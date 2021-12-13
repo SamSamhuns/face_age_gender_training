@@ -34,8 +34,8 @@ def train(config: dict):
                  num_residuals_per_block=config['num_residuals_per_block'],
                  num_blocks=config['num_blocks'],
                  num_classes=config['num_classes'],
-                 num_initial_features=config['num_initial_features'],
-                 reduce_in_features=config["reduce_in_features"],
+                 num_initial_feats=config['num_initial_feats'],
+                 reduce_in_feats=config["reduce_in_feats"],
                  add_residual=config['add_residual'],
                  add_IC=config['add_IC'])
 
@@ -59,11 +59,11 @@ def train(config: dict):
     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
         optimizer, gamma=config['gamma'])
 
-    if config['gender_or_age_or_features'].lower() == 'age':
+    if config['gender_or_age_or_feats'].lower() == 'age':
         from data_loader.data_loaders import AgeDataLoader as DataLoader
-    elif config['gender_or_age_or_features'].lower() == 'gender':
+    elif config['gender_or_age_or_feats'].lower() == 'gender':
         from data_loader.data_loaders import GenderDataLoader as DataLoader
-    elif config['gender_or_age_or_features'].lower() == 'features':
+    elif config['gender_or_age_or_feats'].lower() == 'features':
         from data_loader.data_loaders import FeaturesDataLoader as DataLoader
     else:
         raise ValueError

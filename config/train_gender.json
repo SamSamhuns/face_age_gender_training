@@ -10,8 +10,8 @@
       "num_residuals_per_block": 3,
       "num_blocks": 3,
       "num_classes": 2,
-      "num_initial_features": 512,
-      "reduce_in_features": null,
+      "num_initial_feats": 512,
+      "reduce_in_feats": null,
       "add_residual": true,
       "add_IC": true
     }
