@@ -35,9 +35,9 @@ def train(config: ConfigParser):
     # build model architecture, then print to console
     model = config.init_obj('arch', module_arch)
     logger.info(model)
-
-    if config['checkpoint']:
-        logger.info(f'Loading checkpoint: {config["checkpoint"]} ...')
+    # only use config["checkpoint"] to train from epoch 1 if config.resume is None
+    if config['checkpoint'] and config.resume is None:
+        logger.info(f'Starting training with base checkpoint: {config["checkpoint"]} ...')
         checkpoint = torch.load(config["checkpoint"])
         state_dict = checkpoint['state_dict']
         if config['n_gpu'] > 1:
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     args.add_argument('-c', '--config', default="config/train_age.json", type=str,
                       help='config file path (default: %(default)s)')
     args.add_argument('-r', '--resume', default=None, type=str,
-                      help='path to latest checkpoint (default: %(default)s)')
+                      help='path to latest checkpoint. Takes precedence over config["checkpoint"] (default: %(default)s)')
     args.add_argument('-d', '--device', default=None, type=str,
                       help='indices of GPUs to enable (default: %(default)s)')
 
