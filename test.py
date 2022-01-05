@@ -44,11 +44,10 @@ def test(config: ConfigParser, checkpoint: str) -> dict:
     loss_fn = config.init_ftn('loss', module_loss)
     n_cls = config['data_loader']['args']['num_classes']
     # must pass num_classes if accuracy_per_class metric is used
-    met_func_dict = {met: partial(getattr(module_metric, met), num_classes=n_cls) if met == "acc_per_class"
+    met_func_dict = {met: partial(getattr(module_metric, met), num_classes=n_cls) if met in {"acc_per_class", "confusion_matrix"}
                      else getattr(module_metric, met)
                      for met in config['test_metrics']}
-    met_val_dict = {met: np.zeros(n_cls) if met == "acc_per_class"
-                    else 0. for met in config['test_metrics']}
+    met_val_dict = {}
 
     logger.info(f'Loading checkpoint: {checkpoint} ...')
     checkpoint = torch.load(checkpoint)
@@ -66,6 +65,7 @@ def test(config: ConfigParser, checkpoint: str) -> dict:
     model.eval()
 
     total_loss = 0.0
+    agg_output, agg_target = [], []
     with torch.no_grad():
         for i, (data, target) in tqdm(enumerate(data_loader)):
             data, target = data.to(device), target.to(device)
@@ -77,22 +77,29 @@ def test(config: ConfigParser, checkpoint: str) -> dict:
             else:
                 output = model(data)
                 loss = loss_fn(output, target)
-
             batch_size = data.shape[0]
+            # mult with bsize ensures if the last bsize is diff, we still get exact loss
             total_loss += loss.item() * batch_size
-            for met, met_func in met_func_dict.items():
-                met_val = met_func(output, target) * batch_size
-                met_val_dict[met] += met_val
+
+            agg_output.append(output.cpu().numpy())
+            agg_target.append(target.cpu().numpy())
+
+    agg_output = np.concatenate(agg_output, axis=0)  # shape=(len dataloader, bsize, n_cls)
+    agg_target = np.concatenate(agg_target, axis=0)  # shape=(len dataloader, bsize)
+    # combine dataloader len & bsize axes
+    agg_output = agg_output.reshape(-1, agg_output.shape[-1])
+    agg_target = agg_target.flatten()
+
+    for met, met_func in met_func_dict.items():
+        met_val_dict[met] = met_func(agg_target, agg_output)
 
     n_samples = len(data_loader.sampler)
     if n_samples == 0:
         raise Exception(
             f"Test dataset {config['data_loader']['args']['dataset_test']} is missing or empty")
-
     log = {'loss': total_loss / n_samples}
-    log.update({
-        met: met_val / n_samples for met, met_val in met_val_dict.items()})
-    logger.info(f"test: {log}")
+    log.update({met: met_val for met, met_val in met_val_dict.items()})
+    logger.info(f"test: {(log)}")
     return log
 
 

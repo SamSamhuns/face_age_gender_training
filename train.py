@@ -52,9 +52,6 @@ def train(config: ConfigParser):
 
     # get function handles of loss and train_metrics
     criterion = config.init_ftn('loss', module_loss)
-    if "acc_per_class" in config['train_metrics']:
-        raise ValueError("""Metric acc_per_class is only avialable for testing.\n
-                         It is NOT supported for training/validation""")
     train_metrics = [getattr(module_metric, met)
                      for met in config['train_metrics']]
 
