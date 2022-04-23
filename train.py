@@ -8,8 +8,8 @@ from trainer import Trainer
 from parse_config import ConfigParser
 import data_loader.data_loaders as module_data
 import model.loss as module_loss
-import model.metric as module_metric
 import model.model as module_arch
+import metric.metrics as module_metric
 from utils import prepare_device, update_lr_scheduler
 
 
@@ -33,7 +33,8 @@ def train(config: ConfigParser):
     config = update_lr_scheduler(config, len(data_loader))
 
     # build model architecture, then print to console
-    model = config.init_obj('arch', module_arch)
+    model = config.init_obj('arch', module_arch,
+                            num_classes=config['data_loader']['args']['num_classes'])
     logger.info(model)
     # only use config["checkpoint"] to train from epoch 1 if config.resume is None
     if config['checkpoint'] and config.resume is None:
@@ -74,11 +75,11 @@ def train(config: ConfigParser):
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch Template')
-    args.add_argument('-c', '--config', default="config/train_age.json", type=str,
+    args.add_argument('-cfg', '--config', default="config/train_feat_clsf_fcn.json", type=str,
                       help='config file path (default: %(default)s)')
-    args.add_argument('-r', '--resume', default=None, type=str,
+    args.add_argument('-rp', '--resume', default=None, type=str,
                       help='path to latest checkpoint. Takes precedence over config["checkpoint"] (default: %(default)s)')
-    args.add_argument('-d', '--device', default=None, type=str,
+    args.add_argument('-d', '--device', default='0', type=str,
                       help='indices of GPUs to enable (default: %(default)s)')
 
     # custom cli options to modify configuration from default values given in json file.

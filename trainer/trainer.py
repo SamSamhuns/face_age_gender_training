@@ -1,3 +1,5 @@
+from operator import mul
+from functools import reduce
 import numpy as np
 import torch
 from torchvision.utils import make_grid
@@ -47,7 +49,6 @@ class Trainer(BaseTrainer):
         self.train_metrics.reset()
         for batch_idx, (data, target) in enumerate(self.data_loader):
             data, target = data.to(self.device), target.to(self.device)
-
             self.optimizer.zero_grad()
 
             if self.config['amp']:
@@ -72,6 +73,8 @@ class Trainer(BaseTrainer):
                     epoch,
                     self._progress(batch_idx),
                     loss.item()))
+                # squash all non batch dims of data
+                data = data.reshape(-1, reduce(mul, data.shape[1:]))
                 self.writer.add_image('input', make_grid(
                     data.cpu(), nrow=8, normalize=True))
 
@@ -109,6 +112,8 @@ class Trainer(BaseTrainer):
                 for met in self.metric_ftns:
                     self.valid_metrics.update(
                         met.__name__, met(output, target))
+                # squash all non batch dims of data
+                data = data.reshape(-1, reduce(mul, data.shape[1:]))
                 self.writer.add_image('input', make_grid(
                     data.cpu(), nrow=8, normalize=True))
 

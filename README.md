@@ -23,11 +23,11 @@ $ python hp_tuning.py -c config/HP_TUNING_CONFIG_FILE.json
 **Configuration**: Set the correct parameters in the apporpriate `config/TRAIN_CONFIG_FILE.json`
 
 ```shell
-$ python train.py -c config/TRAIN_CONFIG_FILE.json -d CUDA_DEVICE
+$ python train.py -cfg config/TRAIN_CONFIG_FILE.json -d CUDA_DEVICE_NUM
 ```
 
 ## Testing
 
 ```shell
-$ python test.py -c config/TRAIN_CONFIG_FILE.json -r PATH_TO_MODE_PT_FILE -d CUDA_DEVICE
+$ python test.py -cfg config/TRAIN_CONFIG_FILE.json -rp PATH_TO_MODE_PT_FILE -d CUDA_DEVICE_NUM
 ```

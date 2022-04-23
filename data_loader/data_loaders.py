@@ -1,11 +1,45 @@
 import os
 import random
 import logging
-
+import cv2
 import torch
 import numpy as np
+
 from base import BaseDataLoader
 from utils import recursively_get_file_paths
+
+
+class BatchNormalize:
+    """Applies the :class:`~torchvision.transforms.Normalize` transform to a batch of images.
+    .. note::
+        This transform acts out of place by default, i.e., it does not mutate the input tensor.
+    Args:
+        mean (sequence): Sequence of means for each channel.
+        std (sequence): Sequence of standard deviations for each channel.
+        inplace(bool,optional): Bool to make this operation in-place.
+        dtype (torch.dtype,optional): The data type of tensors to which the transform will be applied.
+        device (torch.device,optional): The device of tensors to which the transform will be applied.
+    """
+
+    def __init__(self, mean, std, inplace=False, dtype=torch.float, device='cpu'):
+        self.mean = torch.as_tensor(mean, dtype=dtype, device=device)[
+            None, :, None, None]
+        self.std = torch.as_tensor(std, dtype=dtype, device=device)[
+            None, :, None, None]
+        self.inplace = inplace
+
+    def __call__(self, tensor):
+        """
+        Args:
+            tensor (Tensor): Tensor of size (N, C, H, W) to be normalized.
+        Returns:
+            Tensor: Normalized Tensor.
+        """
+        if not self.inplace:
+            tensor = tensor.clone()
+
+        tensor.sub_(self.mean).div_(self.std)
+        return tensor.float()
 
 
 class GenderDataset(torch.utils.data.Dataset):
@@ -37,9 +71,8 @@ class GenderDataset(torch.utils.data.Dataset):
                 data = [d for da in data for d in da]
             else:
                 data = data[test_cross_val]
-        elif dataset.lower() == 'custom_age_gender':
-            data = np.load(os.path.join(data_dir, f"{dataset.lower()}/data.npy"),
-                           allow_pickle=True)
+        elif "gender" in dataset.lower():
+            data = recursively_get_file_paths(os.path.join(data_dir, dataset))
         elif dataset.lower() in ['wiki', 'imdb']:
             data = np.load(os.path.join(data_dir, f"{dataset.lower()}/data.npy"),
                            allow_pickle=True)
@@ -79,10 +112,13 @@ class GenderDataset(torch.utils.data.Dataset):
         """
         Return an feature and a target label (gender).
         """
-        x = self.data[idx]['feature']
-        y = {'m': 0, 'f': 1}[self.data[idx]['gender']]
+        # x = self.data[idx]['feature']
+        # y = {'m': 0, 'f': 1}[self.data[idx]['gender']]
+        data = np.load(self.data[idx], allow_pickle=True)
+        X = data.item().get('feature')
+        y = data.item().get('label')
 
-        return x, y
+        return X, y
 
 
 class AgeDataset(torch.utils.data.Dataset):
@@ -118,6 +154,8 @@ class AgeDataset(torch.utils.data.Dataset):
                             "classification. Discouraged as previous exps show it "
                             "doesn't perform so well.")
             self.age_map = None
+        elif num_classes == 4:
+            logging.info("Starting age classification for 4 age groups")
         else:
             raise NotImplementedError(
                 f"num_classes {num_classes} for ages not implemented.")
@@ -130,6 +168,8 @@ class AgeDataset(torch.utils.data.Dataset):
                 data = [d for da in data for d in da]
             else:
                 data = data[test_cross_val]
+        elif "age" in dataset.lower():
+            data = recursively_get_file_paths(os.path.join(data_dir, dataset))
         elif dataset.lower() in ['wiki', 'imdb']:
             data = np.load(os.path.join(data_dir, f"{dataset.lower()}/data.npy"),
                            allow_pickle=True)
@@ -178,17 +218,20 @@ class AgeDataset(torch.utils.data.Dataset):
         """
         Return an feature and a target label (age).
         """
-        x = self.data[idx]['feature']
+        # x = self.data[idx]['feature']
 
         # In case you want to do regression in classification, the target should be
         # a floating point number. I tried this and the result is worse with
         # regression. Juse do classification with cross entropy loss.
-        if self.age_map is None:
-            y = np.float32([self.data[idx]['age']])
-        else:
-            y = self.age_map[self._get_closest_age(self.data[idx]['age'])]
+        # if self.age_map is None:
+        #     y = np.float32([self.data[idx]['age']])
+        # else:
+        #     y = self.age_map[self._get_closest_age(self.data[idx]['age'])]
 
-        return x, y
+        data = np.load(self.data[idx], allow_pickle=True)
+        X = data.item().get('feature')
+        y = data.item().get('label')
+        return X, y
 
 
 class FeaturesDataset(torch.utils.data.Dataset):
@@ -201,7 +244,8 @@ class FeaturesDataset(torch.utils.data.Dataset):
                  training: bool = True, limit_data: int = None, **kwargs):
 
         if "feat" in dataset:
-            data_paths = recursively_get_file_paths(os.path.join(data_dir, dataset))
+            data_paths = recursively_get_file_paths(
+                os.path.join(data_dir, dataset))
         else:
             raise NotImplementedError(f"{dataset} is not implemented.")
 
@@ -222,7 +266,63 @@ class FeaturesDataset(torch.utils.data.Dataset):
         """
         data = np.load(self.data_paths[idx], allow_pickle=True)
         X = data.item().get('feature')
+        # X = X.reshape(60, 128)
+        # X = X[:45]
         y = data.item().get('label')
+        return X, y
+
+
+class VideoFramesDataset(torch.utils.data.Dataset):
+    """
+    Dataset for loading video numpy frames for training.
+    Data point must be npy.npz file containing images in npy format (batch, height, width, channel)
+    """
+
+    def __init__(self, data_dir: str = 'data', dataset: str = None,
+                 training: bool = True, limit_data: int = None, **kwargs):
+
+        if "frames" in dataset:
+            data_paths = recursively_get_file_paths(
+                os.path.join(data_dir, dataset), ext="npz")
+        else:
+            raise NotImplementedError(f"{dataset} is not implemented.")
+
+        self.cname_to_label = {'female_n_male': 0,
+                               'male': 1,
+                               'female_with_kids': 2,
+                               'male_with_kids': 3,
+                               'female': 4,
+                               'family': 5,
+                               'none': 6,
+                               'young_kid': 7}
+        self.transforms = BatchNormalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225), inplace=True)
+
+        if limit_data is not None:
+            logging.info(
+                f"reducing data samples from {len(data_paths)} to {len(data_paths[:limit_data])} ...")
+            random.shuffle(data_paths)
+            self.data_paths = data_paths[:limit_data]
+        else:
+            self.data_paths = data_paths
+
+    def __len__(self) -> int:
+        return len(self.data_paths)
+
+    def __getitem__(self, idx: int) -> tuple:
+        """
+        Return an feature and a target label (video classification).
+        """
+        data = np.load(self.data_paths[idx])
+        X = data["arr"]
+        X = np.asarray([cv2.resize(img, (299, 299)) for img in X])
+        b, h, w, c = X.shape
+        # switch from HWC to CHW
+        X = X.reshape(b, c, h, w)
+        if self.transforms:
+            X = torch.as_tensor(X)
+            X = self.transforms(X)
+        # get label name from data path
+        y = self.cname_to_label[self.data_paths[idx].split('/')[-2]]
         return X, y
 
 
@@ -236,7 +336,7 @@ class GenderDataLoader(BaseDataLoader):
 
     def __init__(self, data_dir: str, batch_size: int, shuffle: bool, validation_split: float,
                  num_workers: int, dataset: str, num_classes: int, training: bool, test_cross_val: int = None,
-                 limit_data: int = None):
+                 limit_data: int = None, **kwargs):
 
         assert num_classes == 2
         self.dataset = GenderDataset(data_dir=data_dir, dataset=dataset,
@@ -256,7 +356,7 @@ class AgeDataLoader(BaseDataLoader):
 
     def __init__(self, data_dir: str, batch_size: int, shuffle: bool, validation_split: float,
                  num_workers: int, dataset: str, num_classes: int, training: bool, test_cross_val: int = None,
-                 limit_data: int = None):
+                 limit_data: int = None, **kwargs):
 
         self.dataset = AgeDataset(data_dir=data_dir, dataset=dataset,
                                   test_cross_val=test_cross_val,
@@ -275,5 +375,18 @@ class FeaturesDataLoader(BaseDataLoader):
                  num_workers: int, dataset: str, num_classes: int, training: bool, limit_data: int = None, **kwargs):
 
         self.dataset = FeaturesDataset(
+            data_dir=data_dir, dataset=dataset, limit_data=limit_data, **kwargs)
+        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
+
+
+class VideoFramesDataLoader(BaseDataLoader):
+    """
+    DataLoader for Video Frames
+    """
+
+    def __init__(self, data_dir: str, batch_size: int, shuffle: bool, validation_split: float,
+                 num_workers: int, dataset: str, num_classes: int, training: bool, limit_data: int = None, **kwargs):
+
+        self.dataset = VideoFramesDataset(
             data_dir=data_dir, dataset=dataset, limit_data=limit_data, **kwargs)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)

@@ -9,8 +9,8 @@ from torch.cuda.amp import autocast  # for float16 mixed point precision
 from parse_config import ConfigParser
 import data_loader.data_loaders as module_data
 import model.loss as module_loss
-import model.metric as module_metric
 import model.model as module_arch
+import metric.metrics as module_metric
 
 
 # fix random seeds for reproducibility
@@ -37,7 +37,8 @@ def test(config: ConfigParser, checkpoint: str) -> dict:
         training=False,
     )
     # build model architecture
-    model = config.init_obj('arch', module_arch)
+    model = config.init_obj('arch', module_arch,
+                            num_classes=config['data_loader']['args']['num_classes'])
     logger.info(model)
 
     # get function handles of loss and test_metrics
@@ -105,11 +106,11 @@ def test(config: ConfigParser, checkpoint: str) -> dict:
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch Template')
-    args.add_argument('-c', '--config', default="config/train_age.json", type=str,
+    args.add_argument('-cfg', '--config', default="config/train_feat_clsf_fcn.json", type=str,
                       help='config file path (default: %(default)s)')
-    args.add_argument('-r', '--resume', default=None, type=str, required=True,
+    args.add_argument('-rp', '--resume', default=None, type=str, required=True,
                       help='path to checkpoint for testing (default: %(default)s)')
-    args.add_argument('-d', '--device', default=None, type=str,
+    args.add_argument('-d', '--device', default='0', type=str,
                       help='indices of GPUs to enable (default: %(default)s)')
 
     config = ConfigParser.from_args(args)
