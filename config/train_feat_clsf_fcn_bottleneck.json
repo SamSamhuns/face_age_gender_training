@@ -1,31 +1,29 @@
 {
-  "name": "ResMLP_age",
-  "n_gpu": 3,
+  "name": "feat_clsf_fcn_bottleneck_15_960_red_128_train",
+  "n_gpu": 1,
   "amp": true,
   "checkpoint": null,
   "arch": {
-    "type": "ResMLP",
+    "type": "FullyConnectedNetBottleneck",
     "args": {
       "dropout": 0.05,
-      "num_residuals_per_block": 1,
-      "num_blocks": 4,
-      "num_initial_feats": 256,
-      "reduce_in_feats": null,
-      "add_residual": true,
-      "add_IC": true
+      "num_blocks": 3,
+      "num_frames": 15,
+      "num_initial_feats": 960,
+      "reduce_in_feats": 128
     }
   },
   "data_loader": {
-    "type": "AgeDataLoader",
+    "type": "FeaturesDataLoader",
     "args": {
-      "data_dir": "data",
-      "batch_size": 128,
+      "data_dir": "data/new_videos_npz_frames/",
+      "batch_size": 32,
       "shuffle": true,
-      "validation_split": 0,
+      "validation_split": 0.1,
       "num_workers": 8,
-      "dataset": "feat_256_age/train",
-      "dataset_test": "feat_256_age/test",
-      "num_classes": 4
+      "dataset": "feat_15_960_train",
+      "dataset_test": "feat_15_960_test",
+      "num_classes": 8
     }
   },
   "optimizer": {
@@ -42,15 +40,20 @@
     }
   },
   "train_metrics": [
-    "accuracy",
-    "top_2_acc",
-    "top_3_acc"
+    "accuracy_torch"
   ],
   "test_metrics": [
     "accuracy",
+    "precision",
+    "recall",
+    "f1score",
     "top_2_acc",
     "top_3_acc",
-    "acc_per_class"
+    "top_4_acc",
+    "top_5_acc",
+    "acc_per_class",
+    "confusion_matrix",
+    "classification_report_sklearn"
   ],
   "lr_scheduler": {
     "type": "ExponentialLR",
@@ -65,6 +68,6 @@
     "verbosity": 2,
     "monitor": "min val_loss",
     "early_stop": 5,
-    "tensorboard": true
+    "tensorboard": false
   }
 }

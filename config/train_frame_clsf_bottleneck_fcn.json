@@ -1,0 +1,78 @@
+{
+  "name": "frame_clsf_fcn_15_2048_red_32_train",
+  "n_gpu": 3,
+  "amp": true,
+  "checkpoint": null,
+  "arch": {
+    "type": "VideoClsfBottleneck",
+    "args": {
+      "backbone": "inception_v3",
+      "backbone_out_feat_size": 2048,
+      "num_blocks": 2,
+      "dropout": 0.05,
+      "num_frames": 15,
+      "reduce_in_feats": 32
+    }
+  },
+  "data_loader": {
+    "type": "VideoFramesDataLoader",
+    "args": {
+      "data_dir": "data/new_videos_npz_frames/",
+      "batch_size": 8,
+      "shuffle": true,
+      "validation_split": 0.1,
+      "num_workers": 8,
+      "drop_last": true,
+      "pin_memory": true,
+      "prefetch_factor": 2,
+      "dataset": "train_video_frames",
+      "dataset_test": "test_video_frames",
+      "num_classes": 8
+    }
+  },
+  "optimizer": {
+    "type": "SGD",
+    "args": {
+      "lr": 0.02025028717740277,
+      "momentum": 0.9,
+      "weight_decay": 6.5025649191944946e-06
+    }
+  },
+  "loss": {
+    "type": "cse",
+    "args": {
+      "label_smoothing": 0.0
+    }
+  },
+  "train_metrics": [
+    "accuracy_torch"
+  ],
+  "test_metrics": [
+    "accuracy",
+    "precision",
+    "recall",
+    "f1score",
+    "top_2_acc",
+    "top_3_acc",
+    "top_4_acc",
+    "top_5_acc",
+    "acc_per_class",
+    "confusion_matrix",
+    "classification_report_sklearn"
+  ],
+  "lr_scheduler": {
+    "type": "ExponentialLR",
+    "args": {
+      "gamma": 0.2921212208238253
+    }
+  },
+  "trainer": {
+    "epochs": 30,
+    "save_dir": "saved/",
+    "save_period": 1,
+    "verbosity": 2,
+    "monitor": "min val_loss",
+    "early_stop": 5,
+    "tensorboard": false
+  }
+}

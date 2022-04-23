@@ -1,5 +1,5 @@
 {
-  "name": "ResMLP_age",
+  "name": "feat_clsf_resmlp_3_20_256_red_512_train",
   "n_gpu": 3,
   "amp": true,
   "checkpoint": null,
@@ -9,23 +9,23 @@
       "dropout": 0.05,
       "num_residuals_per_block": 1,
       "num_blocks": 4,
-      "num_initial_feats": 256,
-      "reduce_in_feats": null,
+      "num_initial_feats": 15360,
+      "reduce_in_feats": 512,
       "add_residual": true,
       "add_IC": true
     }
   },
   "data_loader": {
-    "type": "AgeDataLoader",
+    "type": "FeaturesDataLoader",
     "args": {
-      "data_dir": "data",
-      "batch_size": 128,
+      "data_dir": "data/face_detection_and_extraction_data/",
+      "batch_size": 32,
       "shuffle": true,
-      "validation_split": 0,
+      "validation_split": 0.1,
       "num_workers": 8,
-      "dataset": "feat_256_age/train",
-      "dataset_test": "feat_256_age/test",
-      "num_classes": 4
+      "dataset": "feat_3_20_256_s_b2_train",
+      "dataset_test": "feat_3_20_256_s_b2_test",
+      "num_classes": 8
     }
   },
   "optimizer": {
@@ -42,15 +42,20 @@
     }
   },
   "train_metrics": [
-    "accuracy",
-    "top_2_acc",
-    "top_3_acc"
+    "accuracy_torch"
   ],
   "test_metrics": [
     "accuracy",
+    "precision",
+    "recall",
+    "f1score",
     "top_2_acc",
     "top_3_acc",
-    "acc_per_class"
+    "top_4_acc",
+    "top_5_acc",
+    "acc_per_class",
+    "confusion_matrix",
+    "classification_report_sklearn"
   ],
   "lr_scheduler": {
     "type": "ExponentialLR",

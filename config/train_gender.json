@@ -9,8 +9,7 @@
       "dropout": 0.05,
       "num_residuals_per_block": 3,
       "num_blocks": 3,
-      "num_classes": 2,
-      "num_initial_feats": 512,
+      "num_initial_feats": 256,
       "reduce_in_feats": null,
       "add_residual": true,
       "add_IC": true
@@ -19,13 +18,13 @@
   "data_loader": {
     "type": "GenderDataLoader",
     "args": {
-      "data_dir": "data/",
+      "data_dir": "data",
       "batch_size": 128,
       "shuffle": true,
       "validation_split": 0,
       "num_workers": 8,
-      "dataset": "wiki",
-      "dataset_test": null,
+      "dataset": "feat_256_gender/train",
+      "dataset_test": "feat_256_gender/test",
       "num_classes": 2
     }
   },
@@ -43,14 +42,10 @@
     }
   },
   "train_metrics": [
-    "accuracy",
-    "top_3_acc",
-    "top_5_acc"
+    "accuracy"
   ],
   "test_metrics": [
     "accuracy",
-    "top_3_acc",
-    "top_5_acc",
     "acc_per_class"
   ],
   "lr_scheduler": {
@@ -60,7 +55,7 @@
     }
   },
   "trainer": {
-    "epochs": 5,
+    "epochs": 30,
     "save_dir": "saved/",
     "save_period": 1,
     "verbosity": 2,
